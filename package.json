@@ -1,0 +1,15 @@
+{
+  "name": "node-ex",
+  "version": "1.0.0",
+  "description": "",
+  "main": "node_Event.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "jsonwebtoken": "^8.5.1",
+    "uuid": "^3.3.2"
+  }
+}
