@@ -1,5 +1,7 @@
+const fs = require('fs');
 const net = require('net');
 const jwt = require('jsonwebtoken');
+const save = require('./message-saver').save;
 
 
 class MsgHandler{
@@ -98,7 +100,17 @@ class MsgHandler{
      * @param {Buffer} binaryMsg 
      */
     binaryMsgHandler(socket, binaryMsg){
-        this.server.emit('message', binaryMsg, socket.binaryFile.receiver, socket.username, true, ext);
+        let info = {
+            senderName: socket.username,
+            receiverName: socket.binaryFile.receiver,
+            sendDate: socket.binaryFile.sendDate,
+            ext: socket.binaryFile.extension,
+            type: socket.binaryFile.type
+        }
+        // TODO: put save here // complete
+
+        save({ext: info.ext, file: binaryMsg}, true, info.senderName, info.receiverName)
+        this.server.emit('message', binaryMsg, info);
     }
 
     /**
@@ -108,7 +120,17 @@ class MsgHandler{
      */
     textMsgHandler(socket, textMsg){
         console.log('- msg (text) is:', JSON.stringify(textMsg));
-        this.server.emit('message', Buffer.from(textMsg.message), textMsg.receiver, socket.username, false, null);
+
+        let info = {
+            senderName: socket.username,
+            receiverName: textMsg.receiver,
+            sendDate: textMsg.sendDate,
+            ext: null,
+            type: textMsg.type
+        }
+        // TODO: put save here
+        save(textMsg.message, false, info.senderName, info.receiverName)
+        this.server.emit('message', Buffer.from(textMsg.message), info);
     }
 
     /**
@@ -119,19 +141,23 @@ class MsgHandler{
     authMsgHandler(socket, authMsg){
         socket.auth = true;
 
-        // read secret key
-
-        jwt.verify(authMsg.AccessToken, '01234-56789-98765-43210', (err, decode) => {
-            if(!err && decode.username){
-                console.log('- username:', decode.username);
-
-                socket.username = decode.username;
-                this.server.emit('add new socket', socket);
+        let key = fs.readFileSync('./secretKey.key');
+            if(key === null){
+                console.log('- Internal Server Error. (secret key not found)');
+                process.exit(1);
             }
-            
-        });
-
-        console.log('- authentication process complete.');
+            else{
+                jwt.verify(authMsg.AccessToken, key, (err, decode) => {
+                    if(!err && decode.username){
+                        console.log('- username:', decode.username);
+        
+                        socket.username = decode.username;
+                        this.server.emit('add new socket', socket);
+                    }
+                    
+                });
+                console.log('- authentication process complete.');
+            }  
     }
 
     /**

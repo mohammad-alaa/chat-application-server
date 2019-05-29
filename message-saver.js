@@ -3,7 +3,7 @@ const uuidv1 = require('uuid/v1');
 
 /**
  * 
- * @param {any} msg 
+ * @param {Buffer} msg 
  * @param {Boolean} media 
  * @param {String} senderName 
  * @param {String} receiverName 
@@ -74,12 +74,14 @@ let createFolderAndFile = (path, fileName) => {
 let _save = (msg, media, senderName, receiverName) => {
 
     let path = getPath(senderName, receiverName) + '/' + getFileName(senderName, receiverName) + '.json';
-    let data;
+    let data = [];
     try{
-        data = JSON.parse(fs.readFileSync(path));
+        let temp = fs.readFileSync(path);
+        //console.log('>>>>> ', temp.toString());
+        data = JSON.parse(temp);
     }catch(e){
         data = [];
-        console.log(e);
+        console.log('<<<<<<<<<<<< Exception >>>>>>>>>>>>>>');
     }
          
     let json = {
@@ -125,6 +127,60 @@ let errorPrinter = (err) =>{
     console.log('-', err.stack)
 }
 
+/**
+ * 
+ * @param {Buffer} msg 
+ * @param {any} info 
+ */
+let saveOffLine = (msg, info) =>{
+    let path = `./storage/${info.receiverName}`;
+    fs.exists(path, (exist) => {
+        if(exist){
+           _saveOffLine(msg, info, path);
+        }
+        else{
+            fs.mkdir(path, (err) => {
+                if(!err){
+                    _saveOffLine(msg, info, path);
+                }
+                else{
+                    errorPrinter(err);
+                }
+            });
+        }
+
+    });
+
+};
+
+/**
+ * 
+ * @param {Buffer} msg 
+ * @param {any} info 
+ * @param {String} path
+ */
+let _saveOffLine = (msg, info, path) => {
+    let fileName = uuidv1();
+    fs.writeFile(`${path}/${fileName}.info`, JSON.stringify(info), (err) =>{
+        if(!err){
+            fs.writeFile(`${path}/${fileName}.bin`, msg, (err) =>{
+                if(!err){
+                    console.log(`- msg saved in the server until the receiver (${info.receiverName}) connect`);
+                }
+                else{
+                    errorPrinter(err);
+                }
+            });
+        }
+        else{
+            errorPrinter(err);
+        }
+    });
+
+};
+
 module.exports = {
-    save
+    save,
+    saveOffLine
+
 };
