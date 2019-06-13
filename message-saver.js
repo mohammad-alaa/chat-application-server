@@ -4,28 +4,25 @@ const uuidv1 = require('uuid/v1');
 /**
  * 
  * @param {Buffer} msg 
- * @param {Boolean} media 
- * @param {String} senderName 
- * @param {String} receiverName 
+ * 
+ * @param {any} info 
  */
-let save = (msg, media, senderName, receiverName) => {
+let save = (msg, info) => {
     setTimeout(() => {
-        let path = getPath(senderName, receiverName); ///////////////
-        let fileName = getFileName(senderName, receiverName); ///////////////
+        let path = getPath(info.senderName, info.receiverName); ///////////////
+        let fileName = getFileName(info.senderName, info.receiverName); ///////////////
     
         let exist = fs.existsSync(path);
     
         if(exist){
-            _save(msg, media, senderName, receiverName);
+            _save(msg, info);
         }
         else{
             createFolderAndFile(path, fileName);
-            _save(msg, media, senderName, receiverName);
+            _save(msg, info);
         }
 
-    }, 0)
-   
-
+    }, 0);
 };
 
 /**
@@ -67,54 +64,35 @@ let createFolderAndFile = (path, fileName) => {
 /**
  * 
  * @param {Buffer} msg 
- * @param {Boolean} media 
- * @param {String} senderName 
- * @param {String} receiverName 
+ * 
+ * @param {any} info 
  */
-let _save = (msg, media, senderName, receiverName) => {
-
-    let path = getPath(senderName, receiverName) + '/' + getFileName(senderName, receiverName) + '.json';
+let _save = (msg, info) => {
+    let path = getPath(info.senderName, info.receiverName) + '/' + getFileName(info.senderName, info.receiverName) + '.json';
     let data = [];
     try{
         let temp = fs.readFileSync(path);
-        //console.log('>>>>> ', temp.toString());
         data = JSON.parse(temp);
     }catch(e){
         data = [];
-        console.log('<<<<<<<<<<<< Exception >>>>>>>>>>>>>>');
     }
          
     let json = {
         id: uuidv1(),
-        sender: senderName,
-        type: '',
-        ext: '',
-        message: ''
-    }
-
-    if(media){
-        json.ext = msg.ext; 
-        json.type = 'binary';
-
-        fs.writeFile(getPath(senderName, receiverName) + '/' + json.id + '.' +json.ext, msg.file, (err) => {
-            if(err){
-                errorPrinter(err);
-            }
-        });
-    }
-
-    else{
-        json.type = 'text';
-        json.message = msg;
-    }
+        sender: info.senderName,
+        type: info.type,
+        ext: info.ext ? info.ext : '',
+        sentDate: info.sentDate,
+        message: info.media ? '' : msg.toString()
+    };
 
     data.push(json);
-    fs.writeFile(path, JSON.stringify(data), (err) => {
-        if(err){
-            errorPrinter(err);
-        }
-    });
+    fs.writeFileSync(path, JSON.stringify(data));
 
+    if(info.type === 'BinaryFile'|'Image'|'Audio'){
+        fs.promises.writeFile(getPath(info.senderName, info.receiverName) + '/' + json.id + '.' +json.ext, msg)
+       .catch((err) => errorPrinter(err));
+    }
 };
 
 /**
@@ -140,12 +118,7 @@ let saveOffLine = (msg, info) =>{
         }
         else{
             fs.mkdir(path, (err) => {
-                if(!err){
-                    _saveOffLine(msg, info, path);
-                }
-                else{
-                    errorPrinter(err);
-                }
+                _saveOffLine(msg, info, path);    
             });
         }
 
@@ -182,5 +155,4 @@ let _saveOffLine = (msg, info, path) => {
 module.exports = {
     save,
     saveOffLine
-
 };

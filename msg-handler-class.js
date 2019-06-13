@@ -10,8 +10,9 @@ class MsgHandler{
      * 
      * @param {net.Server} server 
      */
-    constructor(server){
+    constructor(server, blockedUsers){
         this.server = server;
+        this.blockedUsers = blockedUsers;
     }
 
     /**
@@ -88,6 +89,9 @@ class MsgHandler{
             case "Image":
                 this.binaryInfoMsgHandler(socket, jsonMsg);
                 break;
+            case "Audio":
+                this.binaryInfoMsgHandler(socket, jsonMsg);
+                break;
             default:
                 console.log('- msg is:', jsonMsg);
                 socket.emit('error', new Error('unknown type of message'));
@@ -103,13 +107,17 @@ class MsgHandler{
         let info = {
             senderName: socket.username,
             receiverName: socket.binaryFile.receiver,
-            sendDate: socket.binaryFile.sendDate,
+            sentDate: socket.binaryFile.sentDate,
             ext: socket.binaryFile.extension,
             type: socket.binaryFile.type
-        }
-        // TODO: put save here // complete
+        };
 
-        save({ext: info.ext, file: binaryMsg}, true, info.senderName, info.receiverName)
+        if(this.blockedUsers[info.receiverName].indexOf(info.senderName) != -1){
+            console.log(`${info.receiverName} block ${info.senderName}`); 
+            return false;
+        }
+
+        save(binaryMsg, info);
         this.server.emit('message', binaryMsg, info);
     }
 
@@ -124,12 +132,16 @@ class MsgHandler{
         let info = {
             senderName: socket.username,
             receiverName: textMsg.receiver,
-            sendDate: textMsg.sendDate,
+            sentDate: textMsg.sentDate,
             ext: null,
             type: textMsg.type
         }
         // TODO: put save here
-        save(textMsg.message, false, info.senderName, info.receiverName)
+        if(this.blockedUsers[info.receiverName].indexOf(info.senderName) != -1){
+            console.log(`${info.receiverName} block ${info.senderName}`); 
+            return false;
+        }
+        save(textMsg.message, info);
         this.server.emit('message', Buffer.from(textMsg.message), info);
     }
 
@@ -168,15 +180,6 @@ class MsgHandler{
     binaryInfoMsgHandler(socket, binaryInfoMsg){
         socket.binaryFile = binaryInfoMsg;
         console.log('- msg is:', JSON.stringify(binaryInfoMsg));
-    }
-
-    /**
-     * 
-     * @param {net.Socket} sender 
-     * @param {Object} textMsg 
-     */
-    deleteMsgHandler(sender, msg){
-
     }
 };
 

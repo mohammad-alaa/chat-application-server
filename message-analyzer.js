@@ -1,6 +1,6 @@
 const net = require('net');
 
-class NoName{
+class MessageAnalyzer{
 
     /**
      * 
@@ -111,4 +111,4 @@ class NoName{
     }
 };
 
-module.exports = NoName;
+module.exports = MessageAnalyzer;

@@ -1,10 +1,10 @@
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
-const NoName = require('./no-Name');
+const MessageAnalyzer = require('./message-analyzer');
 const MsgHandler = require('./msg-handler-class');
-const save = require('./message-saver').save;
 const saveOffLine = require('./message-saver').saveOffLine;
+const userUtils = require('./utils/users.utils');
 
 class ChatServer{
 
@@ -18,12 +18,14 @@ class ChatServer{
         this.host = host;
         this.sockets = [];
         this.netServer = null;
+        this.blockedUsers = {};
     }
     
     //create tcp server and link between events and functions
     runServer(){
         this.netServer = net.createServer();
-        
+        this.blockedUsers = userUtils.getAllBlockedUsers();
+
         this.netServer.on('connection', (socket) => { this.connectionHandler(socket); });
         this.netServer.on('error', (err) => { this.errorHandler(err); });
         this.netServer.on('close', () => { this.serverCloseHandler(); });
@@ -47,12 +49,12 @@ class ChatServer{
 
         this.setupSocket(socket);
 
-        let noName = new NoName(socket);
-        noName.init();
+        let messageAnalyzer = new MessageAnalyzer(socket);
+        messageAnalyzer.init();
 
         socket.on('message', (msg) => {
 
-            let handler = new MsgHandler(this.netServer);
+            let handler = new MsgHandler(this.netServer, this.blockedUsers);
             handler.handle(socket, msg);
         });
 
@@ -95,6 +97,11 @@ class ChatServer{
      */
     socketCloseHandler(had_error){
         console.log('- socket closed, had_error =', had_error);
+        for(let socket of this.sockets){
+            if(socket.destroyed === true){
+               userUtils.updateUserLastSeen(socket.username, userUtils.getDate());
+            }
+        }
         this.sockets = this.sockets.filter(socket => socket.destroyed === false);
     }
 
@@ -106,6 +113,14 @@ class ChatServer{
         console.log('- new socket added ...........', socket.username);
         this.sockets.push(socket);
         this.loadOffLineMsgs(socket);
+        let user = userUtils.searchForUser(socket.username);
+        socket.friends = user.friends;
+        //socket.blockedUsers = user.blockedUsers;
+        for(let socket of this.sockets){
+            if(socket.destroyed === true){
+               userUtils.updateUserLastSeen(socket.username, 'online');
+            }
+        }
     }
 
    /**
@@ -117,9 +132,11 @@ class ChatServer{
     send(msg, info){
         let receiverSocket = this.getSocket(info.receiverName);
 
+        //if(userUtils.isBlockUser(receiverSocket.blockedUsers, info.senderName)) return false;
+
         if(receiverSocket === null){
             saveOffLine(msg, info);
-            //console.log('- receiver is offline .... the message dropped.');
+			console.log('- receiver offfffffffffffffline');
             return false;
         }
         
@@ -145,9 +162,6 @@ class ChatServer{
             });
 
             console.log(`- message (binary) sent from ${info.senderName} to ${info.receiverName}.`);
-            // TODO: remove save from here
-            //save({ext: info.ext, file: msg}, true, info.senderName, info.receiverName)
-
         }
         else{ 
             let __msg = {
@@ -155,15 +169,11 @@ class ChatServer{
                 message: msg.toString(),
                 sender: info.senderName,
                 sendDate: info.sendDate 
-                
             };
-
             let _msg = Buffer.from(JSON.stringify(__msg));
             msgLen.writeUInt32LE(_msg.length);
             this._send(msgLen, _msg, receiverSocket);            
             console.log(`- message (text) sent from ${info.senderName} to ${info.receiverName}.`);
-            // TODO: remove save from here
-            //save(msg.toString(), false, info.senderName, info.receiverName);
         }
     }
 
@@ -181,7 +191,6 @@ class ChatServer{
                 if(err){
                     this.errorHandler(err);
                     reject(err);
-                  
                 }
                 else{
                     socket.write(msg, (err) => {
@@ -209,9 +218,7 @@ class ChatServer{
         
         return socket === undefined ? null : socket;
     } 
-
-
-    
+  
     /**
      * 
      * @param {net.Socket} socket 
