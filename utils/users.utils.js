@@ -74,6 +74,7 @@ let addUser = (user) => {
 };
 
 let addToLastSeen = (username) => {
+
     fs.promises.readFile('./storage/lastSeen.json')
     .then((data) => {
         try{
@@ -84,7 +85,9 @@ let addToLastSeen = (username) => {
         fs.promises.writeFile('./storage/lastSeen.json', JSON.stringify(data));
     })
     .catch((err) => {
-        console.error(err);
+        let data = {};
+        data[username] = 1;
+        fs.promises.writeFile('./storage/lastSeen.json', JSON.stringify(data));
     });
 };
 
@@ -127,7 +130,7 @@ let updateUserLastSeen = (username, date) => {
         fs.promises.writeFile('./storage/lastSeen.json', JSON.stringify(data));
     })
     .catch((err) => {
-        this.errorHandler(err);
+        console.log(err);
     });
 };
 
@@ -224,8 +227,16 @@ let deleteUser = function(currentUser, deleted){
       }
     }
     return true ;
-}
+};
+
+let getAllUsernames = () => {
+    let usernames = [];
+    let userList = fetchUsers();
+    for(let u of userList) usernames.push(u.username);
+    return usernames;
+};
   
+
 
 
 // str coude be any string
@@ -236,6 +247,34 @@ let searchForSimilirUsers = (str) => {
         if(user.username.includes(str) || user.name.includes(str) || user.email.includes(str))
             result.push({name: user.name, username: user.username,  email: user.email });
     }
+    return result;
+};
+
+let addPublicKey = (username, platform, key) => {
+    let path = `./storage/keys/${username}.${platform}.key`;
+    fs.writeFile(path, key, (err) => {
+        if(err) console.log(err);
+    });
+};
+
+let getPublicKeys = async (username) => {
+    // TODO
+    let result = [];
+    let wPath = `./storage/keys/${username}.windows.key`;
+    let aPath = `./storage/keys/${username}.android.key`;
+
+    let wExist = fs.existsSync(wPath);
+    let aExist = fs.existsSync(aPath);
+
+    if(wExist){
+        let k = await fs.promises.readFile(wPath);
+        result.push({ publicKey:k.toString(), platform: 'windows' });
+    }
+    if(aExist){
+        let k = await fs.promises.readFile(aPath);
+        result.push({ publicKey:k.toString(), platform: 'android' });
+    }
+
     return result;
 };
 
@@ -250,5 +289,10 @@ module.exports = {
     updateUserLastSeen,
     isBlockUser,
     getAllBlockedUsers,
-    getDate
+    getDate,
+    blockUser,
+    unBlockUser,
+    getAllUsernames,
+    addPublicKey,
+    getPublicKeys,
 }

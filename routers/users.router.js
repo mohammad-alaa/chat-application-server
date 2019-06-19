@@ -1,21 +1,19 @@
+const fs = require('fs');
+const net = require('net');
 const express = require('express');
-const fs = require('fs')
 const router = express.Router();
 const usersUtils = require('../utils/users.utils');
 const response = require('../shared/responseForm');
 const rateLimit = require('../shared/limiterOpts').rateLimit;
 
-const limiterOpts = rateLimit(1000, 1);
+const limiterOpts = rateLimit(1000, 1000);
 
 
-// Search For User Using His userName
-// TODO: return list
+
 router.get('/search/:user', limiterOpts, (req, res, next) => {
     let user = req.params['user'];
     let result = usersUtils.searchForSimilirUsers(user);
-    // TODO : no need for error
-    //if(!result) return next(new Error('no one has this username'));
-
+    
     response.data = result;
     response.status = true ;
     response.errors = null;
@@ -40,10 +38,25 @@ router.post('/addFriend', limiterOpts, (req, res, next) => {
     let userFriend= req.body.friend;
     if(! usersUtils.addFriend(currUser, userFriend)) return next(new Error('wrong username or friend name'));
     // TODO: data must be empty
-    response.data = null ;
-    response.status = true ;
-    response.errors = null;
-    res.json(response);
+    //-----------------------------------
+    let sock = new net.Socket();
+    sock.connect(3001, () => {
+        let _msg = {type:'new friend', from:currUser, to:userFriend};
+        let msg = Buffer.from(JSON.stringify(_msg));
+        let msgLen = Buffer.alloc(4);
+        msgLen.writeUInt32LE(msg.length);
+
+        sock.write(msgLen); sock.write(msg);
+
+        response.data = null ;
+        response.status = true ;
+        response.errors = null;
+        res.json(response);
+        
+        sock.end();
+    });
+    //-----------------------------------
+   
 });
 
 router.get('/lastSeen/:user', limiterOpts, async (req, res, next) => {
@@ -58,9 +71,8 @@ router.get('/lastSeen/:user', limiterOpts, async (req, res, next) => {
     res.json(response);
 });
 
-
-router.post('/blockUser',(req,res, next) => {
-    let blockingResult = userUtils.blockUser(req.body.username, req.body.block);
+router.post('/blockUser',(req, res, next) => {
+    let blockingResult = usersUtils.blockUser(req.body.username, req.body.block);
     if(blockingResult) {
       response.status = true;
       response.errors = null;
@@ -71,8 +83,8 @@ router.post('/blockUser',(req,res, next) => {
     }
 });
   
-router.post('/unBlockUser',(req,res,next) => {
-    let unBlockResult = userUtils.unBlockUser(req.body.username, req.body.unblock);
+router.post('/unBlockUser',(req, res, next) => {
+    let unBlockingResult = usersUtils.unBlockUser(req.body.username, req.body.unblock);
     if(unBlockingResult) {
       response.status = true;
       response.errors = null;
@@ -90,14 +102,27 @@ router.post('/delete', (req,res,next) => {
     response.data = null;
     res.json(response);
 });
-  
 
-// post -> delete friend || body -> {username, friendName}
-// post -> block friend || body -> {username, friendName}
-// post -> unblock friend || body -> {username, friendName}
-// post -> public key || body -> {username, publicKey}
-//
+router.post('/setPublicKey', (req, res, next) => {
+    if(!req.body.username || !req.body.platform || !req.body.publicKey) return next(new Error('bad request.'));
+    usersUtils.addPublicKey(req.body.username, req.body.platform, req.body.publicKey);
+    response.status = true;
+    response.errors = null;
+    response.data = null;
+    res.json(response);
+});
 
+router.get('/getPublicKeys/:username', async (req, res, next) => {
+    let username = req.params['username'];
+    let result = await usersUtils.getPublicKeys(username);
+
+    if(result.length === 0) return next(new Error('wrong username'));
+
+    response.status = true;
+    response.errors = null;
+    response.data = result;
+    res.json(response);
+});
 //Get All Users ...
 router.get('/users', limiterOpts  , (req, res, next) => {
    

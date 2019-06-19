@@ -47,7 +47,11 @@ class MsgHandler{
                 // check the token
                 this.authMsgHandler(socket, jsonMsg);
             }
-            // case 2: normal msg -> end the connect with error
+            // case 2: new friend notif -> only from server
+            else if('new friend' === jsonMsg.type){
+                this.server.emit('notify', jsonMsg);
+            }
+            // case 3: normal msg -> end the connect with error
             else{
                 socket.destroy(new Error('Not authenticated'));
                 console.log('- unauthenticated client, connection end.');
@@ -136,7 +140,7 @@ class MsgHandler{
             ext: null,
             type: textMsg.type
         }
-        // TODO: put save here
+       
         if(this.blockedUsers[info.receiverName].indexOf(info.senderName) != -1){
             console.log(`${info.receiverName} block ${info.senderName}`); 
             return false;
@@ -165,6 +169,10 @@ class MsgHandler{
         
                         socket.username = decode.username;
                         this.server.emit('add new socket', socket);
+                    }
+                    else{
+                        socket.auth = false;
+                        socket.destroy(new Error("Not authenticated"))
                     }
                     
                 });

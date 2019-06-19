@@ -8,13 +8,11 @@ const users = require('../utils/users.utils');
 const rateLimit = require("../shared/limiterOpts").rateLimit;
 
 // TODO:????
-const limiterOpts = rateLimit(1000 * 60, 1);
+const limiterOpts = rateLimit(1000 * 60, 1000);
 
 let router = express.Router();
 
 router.post('/signup', (req, res, next) => {
-    console.log(req.body);
-
     if(!req.body.username) return next(new Error('username require to complete signup'));
     if(!req.body.password) return next(new Error('password require to complete signup'));
 	if(!req.body.email) return next(new Error('email require to complete signup'));
@@ -40,7 +38,8 @@ router.post('/signup', (req, res, next) => {
         res.json(response);
     })
     .catch((err) => {
-        next(err);
+        console.log(err);
+        process.exit(-111);
     });
 });
 
@@ -67,7 +66,8 @@ router.post('/login',limiterOpts ,  (req, res, next) => {
         res.json(response);
     })
     .catch((err) => {
-        next(err);
+        console.log(err);
+        process.exit(-111);
     });
 });
 
