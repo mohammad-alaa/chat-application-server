@@ -96,6 +96,9 @@ class MsgHandler{
             case "Audio":
                 this.binaryInfoMsgHandler(socket, jsonMsg);
                 break;
+            case "VoiceCall":
+                this.voiceCallNotificationsHandler(socket, jsonMsg);
+                break;
             default:
                 console.log('- msg is:', jsonMsg);
                 socket.emit('error', new Error('unknown type of message'));
@@ -188,6 +191,17 @@ class MsgHandler{
     binaryInfoMsgHandler(socket, binaryInfoMsg){
         socket.binaryFile = binaryInfoMsg;
         console.log('- msg is:', JSON.stringify(binaryInfoMsg));
+    }
+
+    /**
+     * 
+     * @param {net.Socket} socket 
+     * @param {any} notification 
+     */
+    voiceCallNotificationsHandler(socket, notification){
+        notification.from = socket.username;
+        notification.ip = socket.remoteAddress;
+        this.server.emit('notify', notification);
     }
 };
 

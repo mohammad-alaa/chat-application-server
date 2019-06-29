@@ -134,7 +134,7 @@ let saveOffLine = (msg, info) =>{
  * @param {String} path
  */
 let _saveOffLine = (msg, info, path) => {
-    let fileName = uuidv1();
+    let fileName = Date.now();
     fs.writeFile(`${path}/${fileName}.info`, JSON.stringify(info), (err) =>{
         if(!err){
             fs.writeFile(`${path}/${fileName}.bin`, msg, (err) =>{

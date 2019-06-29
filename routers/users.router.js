@@ -36,7 +36,8 @@ router.post('/addFriend', limiterOpts, (req, res, next) => {
        
     let currUser= req.body.current;
     let userFriend= req.body.friend;
-    if(! usersUtils.addFriend(currUser, userFriend)) return next(new Error('wrong username or friend name'));
+    let result = usersUtils.addFriend(currUser, userFriend)
+    if(result.status === false ) return next(new Error(result.error));
     // TODO: data must be empty
     //-----------------------------------
     let sock = new net.Socket();
@@ -96,11 +97,17 @@ router.post('/unBlockUser',(req, res, next) => {
 });
   
 router.post('/delete', (req,res,next) => {
-    userUtils.deleteUser(req.body.username, req.body.delete);
-    response.status = true;
-    response.errors = null;
-    response.data = null;
-    res.json(response);
+    console.log(req.body);
+    let deleteRes =  usersUtils.deleteUser(req.body.username, req.body.delete);
+    if(deleteRes){
+        response.status = true;
+        response.errors = null;
+        response.data = null;
+        res.json(response);
+    }
+    else {
+        next(new Error('User Not Found !'));
+    }
 });
 
 router.post('/setPublicKey', (req, res, next) => {
