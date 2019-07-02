@@ -32,6 +32,19 @@ router.get('/friends/:user', limiterOpts, (req, res, next) => {
     
 });
 
+router.get('/blockedUsers/:user', limiterOpts, (req, res, next) => {
+    let reqUser = req.params['user'];
+    let currentUser = usersUtils.searchForUser(reqUser);
+    if(!currentUser) return next(new Error('wrong usrename'));
+
+    response.data = currentUser.blockedUsers;
+    response.status = true;
+    response.errors = null;
+    res.json(response);
+
+
+});
+
 router.post('/addFriend', limiterOpts, (req, res, next) => {
        
     let currUser= req.body.current;
